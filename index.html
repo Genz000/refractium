@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Glass Scope — magnifier distortion</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ---------- shadcn/ui tokens (zinc) ---------- */
+:root{
+  --background:#ffffff; --foreground:#09090b;
+  --card:#ffffff; --card-foreground:#09090b;
+  --muted:#f4f4f5; --muted-foreground:#71717a;
+  --accent:#f4f4f5; --accent-foreground:#18181b;
+  --border:#e4e4e7; --input:#e4e4e7; --ring:#a1a1aa;
+  --primary:#18181b; --primary-foreground:#fafafa;
+  --secondary:#f4f4f5; --secondary-foreground:#18181b;
+  --destructive:#ef4444;
+  --stage:#f4f4f5; --checker:#e4e4e7;
+  --radius:0.5rem;
+  --font: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --background:#09090b; --foreground:#fafafa;
+    --card:#09090b; --card-foreground:#fafafa;
+    --muted:#27272a; --muted-foreground:#a1a1aa;
+    --accent:#27272a; --accent-foreground:#fafafa;
+    --border:#27272a; --input:#27272a; --ring:#52525b;
+    --primary:#fafafa; --primary-foreground:#18181b;
+    --secondary:#27272a; --secondary-foreground:#fafafa;
+    --stage:#111113; --checker:#1c1c1f;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --background:#09090b; --foreground:#fafafa;
+  --card:#09090b; --card-foreground:#fafafa;
+  --muted:#27272a; --muted-foreground:#a1a1aa;
+  --accent:#27272a; --accent-foreground:#fafafa;
+  --border:#27272a; --input:#27272a; --ring:#52525b;
+  --primary:#fafafa; --primary-foreground:#18181b;
+  --secondary:#27272a; --secondary-foreground:#fafafa;
+  --stage:#111113; --checker:#1c1c1f;
+  color-scheme: dark;
+}
+:root{ box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px); }
+html{ scroll-padding-top:env(safe-area-inset-top,0px); height:100%; }
+*,*::before,*::after{ box-sizing:inherit; }
+body{
+  margin:0; height:100%; background:var(--background); color:var(--foreground);
+  font-family:var(--font); font-size:14px; line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+img{ max-width:100%; }
+button,input,select,textarea{ font:inherit; color:inherit; }
+:focus-visible{ outline:2px solid var(--ring); outline-offset:2px; }
+
+/* ---------- layout ---------- */
+.app{ display:grid; grid-template-rows:auto 1fr; height:100%; min-height:0; }
+header.topbar{
+  display:flex; align-items:center; gap:12px; padding:10px 16px;
+  border-bottom:1px solid var(--border); background:var(--background);
+}
+.brand{ display:flex; align-items:center; gap:10px; min-width:0; }
+.brand svg{ flex:none; }
+.brand h1{ font-size:15px; font-weight:600; margin:0; letter-spacing:-0.01em; }
+.brand p{ margin:0; font-size:13px; color:var(--muted-foreground); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.brand .titles{ display:flex; align-items:baseline; gap:10px; min-width:0; }
+.topbar .actions{ margin-left:auto; display:flex; gap:8px; align-items:center; }
+
+main.workspace{ display:grid; grid-template-columns:minmax(0,1fr) 340px; min-height:0; }
+.stage-wrap{ display:flex; flex-direction:column; min-height:0; min-width:0; }
+.stage{
+  position:relative; flex:1; min-height:0; display:flex; align-items:center; justify-content:center;
+  padding:24px; background:var(--stage); overflow:hidden;
+}
+.stage.dragover{ box-shadow: inset 0 0 0 2px var(--ring); }
+.canvas-holder{
+  position:relative; border-radius:calc(var(--radius) - 2px); overflow:hidden;
+  background-color:var(--background);
+  background-image:
+    linear-gradient(45deg,var(--checker) 25%,transparent 25%),
+    linear-gradient(-45deg,var(--checker) 25%,transparent 25%),
+    linear-gradient(45deg,transparent 75%,var(--checker) 75%),
+    linear-gradient(-45deg,transparent 75%,var(--checker) 75%);
+  background-size:16px 16px; background-position:0 0,0 8px,8px -8px,-8px 0;
+  box-shadow:0 1px 2px rgba(0,0,0,.06), 0 0 0 1px var(--border);
+}
+canvas#gl{ display:block; touch-action:none; cursor:crosshair; }
+canvas#gl:focus-visible{ outline:2px solid var(--ring); outline-offset:-2px; }
+.statusbar{
+  display:flex; flex-wrap:wrap; align-items:center; gap:8px 16px; padding:10px 16px;
+  border-top:1px solid var(--border); font-size:12.5px; color:var(--muted-foreground);
+}
+.statusbar .hints{ display:flex; flex-wrap:wrap; gap:6px 14px; margin-left:auto; }
+kbd{
+  font-family:var(--mono); font-size:11px; padding:1px 5px; border-radius:4px;
+  border:1px solid var(--border); background:var(--muted); color:var(--foreground);
+}
+
+aside.panel{
+  border-left:1px solid var(--border); overflow-y:auto; min-height:0; background:var(--background);
+}
+.section{ padding:16px; border-bottom:1px solid var(--border); }
+.section:last-child{ border-bottom:0; }
+.section-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; gap:8px; }
+.section-head h2{ font-size:14px; font-weight:600; margin:0; letter-spacing:-0.01em; }
+.section-head p{ margin:0; font-size:12.5px; color:var(--muted-foreground); }
+.stack{ display:grid; gap:14px; }
+
+/* ---------- shadcn: Button ---------- */
+.btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:6px;
+  height:36px; padding:0 14px; border-radius:calc(var(--radius) - 2px);
+  font-size:14px; font-weight:500; white-space:nowrap; cursor:pointer;
+  border:1px solid transparent; transition:background-color .15s, color .15s, border-color .15s;
+  user-select:none;
+}
+.btn svg{ width:16px; height:16px; flex:none; }
+.btn-primary{ background:var(--primary); color:var(--primary-foreground); }
+.btn-primary:hover{ opacity:.9; }
+.btn-outline{ background:var(--background); border-color:var(--input); }
+.btn-outline:hover{ background:var(--accent); }
+.btn-ghost{ background:transparent; }
+.btn-ghost:hover{ background:var(--accent); }
+.btn-secondary{ background:var(--secondary); color:var(--secondary-foreground); }
+.btn-secondary:hover{ opacity:.85; }
+.btn-sm{ height:32px; padding:0 10px; font-size:13px; }
+.btn-icon{ width:36px; padding:0; }
+.btn[aria-pressed="true"]{ background:var(--accent); border-color:var(--input); }
+.btn:disabled{ opacity:.5; pointer-events:none; }
+
+/* ---------- shadcn: Tabs ---------- */
+.tabs{ display:grid; grid-auto-flow:column; grid-auto-columns:1fr; padding:3px; border-radius:var(--radius); background:var(--muted); height:36px; }
+.tabs button{
+  border:0; background:transparent; border-radius:calc(var(--radius) - 3px); cursor:pointer;
+  font-size:13px; font-weight:500; color:var(--muted-foreground);
+}
+.tabs button[aria-selected="true"]{ background:var(--background); color:var(--foreground); box-shadow:0 1px 2px rgba(0,0,0,.08); }
+
+/* ---------- shadcn: Slider ---------- */
+.field{ display:grid; gap:8px; }
+.field-row{ display:flex; justify-content:space-between; align-items:center; gap:8px; }
+.label{ font-size:13px; font-weight:500; }
+.value{ font-family:var(--mono); font-size:12px; color:var(--muted-foreground); font-variant-numeric:tabular-nums; }
+input[type=range]{
+  --p:50%;
+  -webkit-appearance:none; appearance:none; width:100%; height:16px; background:transparent; margin:0; cursor:pointer;
+}
+input[type=range]::-webkit-slider-runnable-track{
+  height:6px; border-radius:999px;
+  background:linear-gradient(to right, var(--primary) var(--p), var(--muted) var(--p));
+}
+input[type=range]::-moz-range-track{ height:6px; border-radius:999px; background:var(--muted); }
+input[type=range]::-moz-range-progress{ height:6px; border-radius:999px; background:var(--primary); }
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none; width:16px; height:16px; margin-top:-5px; border-radius:50%;
+  background:var(--background); border:1px solid var(--primary); box-shadow:0 1px 3px rgba(0,0,0,.15);
+  transition:box-shadow .15s;
+}
+input[type=range]::-moz-range-thumb{
+  width:14px; height:14px; border-radius:50%; background:var(--background); border:1px solid var(--primary);
+}
+input[type=range]:focus-visible{ outline:none; }
+input[type=range]:focus-visible::-webkit-slider-thumb{ box-shadow:0 0 0 4px color-mix(in srgb, var(--ring) 45%, transparent); }
+input[type=range]:focus-visible::-moz-range-thumb{ box-shadow:0 0 0 4px color-mix(in srgb, var(--ring) 45%, transparent); }
+
+/* ---------- shadcn: Switch ---------- */
+.switch-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.switch-row .desc{ font-size:12.5px; color:var(--muted-foreground); }
+.switch{
+  position:relative; width:36px; height:20px; border-radius:999px; border:2px solid transparent;
+  background:var(--input); cursor:pointer; flex:none; padding:0; transition:background-color .15s;
+}
+.switch::after{
+  content:""; position:absolute; top:0; left:0; width:16px; height:16px; border-radius:50%;
+  background:var(--background); box-shadow:0 1px 2px rgba(0,0,0,.2); transition:transform .15s;
+}
+.switch[aria-checked="true"]{ background:var(--primary); }
+.switch[aria-checked="true"]::after{ transform:translateX(16px); }
+
+/* ---------- shadcn: Select ---------- */
+.select-wrap{ position:relative; }
+select.select{
+  -webkit-appearance:none; appearance:none; width:100%; height:36px; padding:0 32px 0 12px;
+  border-radius:calc(var(--radius) - 2px); border:1px solid var(--input); background:var(--background);
+  font-size:14px; cursor:pointer;
+}
+.select-wrap svg{ position:absolute; right:10px; top:50%; transform:translateY(-50%); width:16px; height:16px; opacity:.5; pointer-events:none; }
+
+/* ---------- textarea / dropzone ---------- */
+textarea.textarea{
+  width:100%; min-height:110px; resize:vertical; padding:8px 12px; border-radius:calc(var(--radius) - 2px);
+  border:1px solid var(--input); background:var(--background); font-family:var(--mono); font-size:12px; line-height:1.5;
+}
+.dropzone{
+  display:grid; justify-items:center; gap:6px; text-align:center; padding:18px 12px;
+  border:1px dashed var(--input); border-radius:var(--radius); cursor:pointer; transition:background-color .15s, border-color .15s;
+}
+.dropzone:hover,.dropzone.dragover{ background:var(--accent); border-color:var(--ring); }
+.dropzone svg{ width:20px; height:20px; color:var(--muted-foreground); }
+.dropzone strong{ font-weight:500; font-size:13.5px; }
+.dropzone span{ font-size:12.5px; color:var(--muted-foreground); }
+
+.preset-grid{ display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:6px; }
+.preset-grid .btn{ height:auto; padding:8px 6px; flex-direction:column; gap:4px; font-size:12.5px; }
+.preset-grid .btn svg{ width:22px; height:22px; }
+.style-grid{ display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:6px; }
+.style-grid .btn{ height:auto; padding:8px 4px; flex-direction:column; gap:4px; font-size:12px; }
+.style-grid .btn svg{ width:20px; height:20px; }
+.style-grid .btn[aria-pressed="true"], .preset-grid .btn[aria-pressed="true"]{ border-color:var(--primary); box-shadow:inset 0 0 0 1px var(--primary); background:var(--background); }
+.help{ margin:0; font-size:12.5px; color:var(--muted-foreground); }
+.color-swatch{
+  position:relative; width:36px; height:36px; border-radius:calc(var(--radius) - 2px); border:1px solid var(--input); overflow:hidden; flex:none;
+}
+.color-swatch input{ position:absolute; inset:-8px; width:52px; height:52px; border:0; padding:0; cursor:pointer; background:none; }
+.row{ display:flex; gap:8px; align-items:center; }
+.row > .grow{ flex:1; min-width:0; }
+.badge{
+  display:inline-flex; align-items:center; gap:6px; height:22px; padding:0 8px; border-radius:999px;
+  border:1px solid var(--border); font-size:12px; font-weight:500; color:var(--foreground); max-width:100%;
+}
+.badge span{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.hidden{ display:none !important; }
+
+/* ---------- toast (sonner-ish) ---------- */
+.toaster{ position:fixed; right:16px; bottom:calc(16px + env(safe-area-inset-bottom,0px)); display:grid; gap:8px; z-index:50; }
+.toast{
+  min-width:260px; max-width:360px; padding:12px 14px; border-radius:var(--radius);
+  background:var(--background); border:1px solid var(--border); box-shadow:0 4px 12px rgba(0,0,0,.12);
+  font-size:13px; animation:toast-in .2s ease-out;
+}
+.toast strong{ display:block; font-weight:600; margin-bottom:2px; }
+.toast p{ margin:0; color:var(--muted-foreground); }
+@keyframes toast-in{ from{ opacity:0; transform:translateY(6px);} to{ opacity:1; transform:none;} }
+
+@media (max-width: 860px){
+  .app{ height:auto; }
+  main.workspace{ grid-template-columns:1fr; }
+  .stage{ height:62vh; flex:none; padding:12px; }
+  aside.panel{ border-left:0; border-top:1px solid var(--border); overflow:visible; }
+  .brand p{ display:none; }
+  .statusbar .hints{ margin-left:0; }
+}
+@media (max-width: 480px){
+  .topbar .btn .lbl{ display:none; }
+  .topbar .btn-primary{ width:36px; padding:0; }
+}
+@media (prefers-reduced-motion: reduce){ *{ transition:none !important; animation:none !important; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true">
+        <circle cx="13" cy="13" r="11.5" fill="none" stroke="currentColor" stroke-width="2"/>
+        <circle cx="13" cy="13" r="6" fill="none" stroke="currentColor" stroke-width="1" opacity=".45"/>
+        <path d="M13 3.5v5.5M13 17v5.5M3.5 13H9M17 13h5.5" stroke="currentColor" stroke-width="1.4"/>
+      </svg>
+      <div class="titles">
+        <h1>Glass Scope</h1>
+        <p>Magnifying glass distortion for images and SVGs</p>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn btn-outline btn-sm" id="compareBtn" aria-pressed="false" title="Hold to see the original (C)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><rect x="3" y="5" width="18" height="14" rx="2"/></svg>
+        <span class="lbl">Compare</span>
+      </button>
+      <button class="btn btn-ghost btn-icon" id="themeBtn" aria-label="Toggle theme">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+      </button>
+      <button class="btn btn-primary" id="exportBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+        <span class="lbl">Export</span>
+      </button>
+    </div>
+  </header>
+
+    <main class="workspace">
+    <section class="stage-wrap" aria-label="Preview">
+      <div class="stage" id="stage">
+        <div class="canvas-holder" id="holder">
+          <canvas id="gl" tabindex="0" aria-label="Distorted image preview. Drag or use arrow keys to move the magnifier."></canvas>
+        </div>
+      </div>
+      <div class="statusbar">
+        <span class="badge"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg><span id="fileName">sample.svg</span></span>
+        <span id="fileDims" class="value"></span>
+        <div class="hints">
+          <span><kbd>Drag</kbd> move glass</span>
+          <span><kbd>Scroll</kbd> magnification</span>
+          <span><kbd>[</kbd> <kbd>]</kbd> glass size</span>
+          <span><kbd>C</kbd> hold to compare</span>
+        </div>
+      </div>
+    </section>
+
+    <aside class="panel" aria-label="Controls">
+      <div class="section">
+        <div class="section-head"><h2>Source</h2><button class="btn btn-ghost btn-sm" id="sampleBtn">Load sample</button></div>
+        <div class="stack">
+          <label class="dropzone" id="dropzone" tabindex="0">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="m7 8 5-5 5 5"/><path d="M20 21H4"/></svg>
+            <strong>Drop an image or SVG</strong>
+            <span>PNG, JPG, WebP, GIF or SVG. You can also paste.</span>
+            <input type="file" id="fileInput" accept="image/*,.svg" class="hidden">
+          </label>
+          <div>
+            <button class="btn btn-outline btn-sm" id="svgToggle" style="width:100%">Paste SVG code</button>
+            <div id="svgBox" class="hidden" style="margin-top:8px; display:grid; gap:8px;">
+              <textarea class="textarea" id="svgText" spellcheck="false" placeholder='<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">…</svg>'></textarea>
+              <button class="btn btn-secondary btn-sm" id="svgApply">Render SVG</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-head"><h2>Presets</h2></div>
+        <div class="preset-grid" id="presets"></div>
+      </div>
+
+      <div class="section">
+        <div class="section-head"><h2>Distortion style</h2><button class="btn btn-ghost btn-sm" id="resetBtn">Reset</button></div>
+        <div class="stack">
+          <div class="style-grid" id="styles" role="group" aria-label="Distortion style"></div>
+          <p class="help" id="styleHelp"></p>
+          <div class="stack" id="distSliders"></div>
+          <div class="switch-row" id="animRow">
+            <div><div class="label">Animate</div><div class="desc">Keep the surface moving</div></div>
+            <button class="switch" role="switch" aria-checked="false" id="animSw" aria-label="Animate distortion"></button>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-head"><h2>Glass edge</h2></div>
+        <div class="stack">
+          <div class="tabs" role="tablist" aria-label="Distortion at the glass edge">
+            <button role="tab" data-edge="0">Clean</button>
+            <button role="tab" data-edge="1">Soft</button>
+            <button role="tab" data-edge="2">Spill outside</button>
+          </div>
+          <p class="help" id="edgeHelp"></p>
+          <div class="stack" id="edgeSliders"></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-head"><h2>Glass</h2></div>
+        <div class="stack">
+          <div class="tabs" role="tablist" aria-label="Glass shape">
+            <button role="tab" data-shape="0">Round</button>
+            <button role="tab" data-shape="1">Rounded square</button>
+            <button role="tab" data-shape="2">Wide</button>
+          </div>
+          <div class="stack" id="glassSliders"></div>
+          <div class="switch-row">
+            <div><div class="label">Follow cursor</div><div class="desc">Glass tracks the pointer without dragging</div></div>
+            <button class="switch" role="switch" aria-checked="false" id="followSw" aria-label="Follow cursor"></button>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-head"><h2>Look</h2></div>
+        <div class="stack">
+          <div class="field">
+            <label class="label" for="frameSel">Frame</label>
+            <div class="row">
+              <div class="select-wrap grow">
+                <select class="select" id="frameSel">
+                  <option value="0">None</option>
+                  <option value="1">Glass rim</option>
+                  <option value="2">Metal ring</option>
+                </select>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+              </div>
+              <label class="color-swatch" title="Ring color"><input type="color" id="frameColor" aria-label="Ring color"></label>
+            </div>
+          </div>
+          <div class="switch-row">
+            <div><div class="label">Handle</div><div class="desc">Classic magnifying glass handle</div></div>
+            <button class="switch" role="switch" aria-checked="false" id="handleSw" aria-label="Show handle"></button>
+          </div>
+          <div class="stack" id="lookSliders"></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-head"><h2>Export</h2></div>
+        <div class="row">
+          <div class="select-wrap grow">
+            <select class="select" id="formatSel" aria-label="Export format">
+              <option value="png">PNG, lossless</option>
+              <option value="jpg">JPG, smaller</option>
+              <option value="webp">WebP</option>
+            </select>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+          </div>
+          <button class="btn btn-primary" id="exportBtn2">Export</button>
+        </div>
+        <p class="value" id="exportInfo" style="margin:10px 0 0"></p>
+      </div>
+    </aside>
+  </main>
+</div>
+<div class="toaster" id="toaster" aria-live="polite"></div>
+
+<script>
+(() => {
+"use strict";
+
+/* ================= state ================= */
+const DEFAULTS = {
+  cx:.5, cy:.5, radius:.26, mag:1.8, shape:0,
+  style:0, strength:.45, detail:.5, animate:false, ca:.25,
+  edge:0, spread:.3,
+  frame:2, frameColor:"#b9bec7", handle:true, spec:.6, shade:.35, shadow:.5,
+  follow:false
+};
+const S = Object.assign({}, DEFAULTS);
+let cur = { x:S.cx, y:S.cy };
+let bypass = false;
+
+const STYLES = [
+  { name:"Convex", help:"A classic magnifying lens: the centre swells and the rim compresses.", detail:false, anim:false,
+    icon:'<circle cx="12" cy="12" r="8"/><path d="M8 12c0-3 1.8-5 4-5s4 2 4 5-1.8 5-4 5-4-2-4-5Z"/>' },
+  { name:"Glass ball", help:"A solid sphere bending light hard toward the edge, like a marble.", detail:false, anim:false,
+    icon:'<circle cx="12" cy="12" r="8"/><path d="M8.5 9.5a4 4 0 0 1 3-2.5"/>' },
+  { name:"Concave", help:"Pincushion glass that shrinks the centre and stretches the rim.", detail:false, anim:false,
+    icon:'<path d="M5 5c3 3 3 11 0 14M19 5c-3 3-3 11 0 14M5 5h14M5 19h14"/>' },
+  { name:"Ripple", help:"Concentric waves, like a drop landing on water.", detail:true, anim:true,
+    icon:'<circle cx="12" cy="12" r="2"/><circle cx="12" cy="12" r="5.5"/><circle cx="12" cy="12" r="9"/>' },
+  { name:"Swirl", help:"Twists the image around the centre of the glass.", detail:false, anim:false,
+    icon:'<path d="M12 12a2 2 0 1 1 2-2 4.5 4.5 0 1 1-6 4.5A7.5 7.5 0 1 1 19.5 9"/>' },
+  { name:"Liquid", help:"Uneven molten glass with a wobbly surface.", detail:true, anim:true,
+    icon:'<path d="M4 9c3-3 5 3 8 0s5 3 8 0M4 15c3-3 5 3 8 0s5 3 8 0"/>' },
+  { name:"Faceted", help:"Cut crystal: every facet magnifies its own patch.", detail:true, anim:false,
+    icon:'<path d="M12 3 20 8v8l-8 5-8-5V8Z"/><path d="M12 3v18M4 8l16 8M20 8 4 16"/>' },
+];
+
+const EDGE_HELP = [
+  "Only the glass distorts. Everything outside the rim stays untouched.",
+  "The distortion fades out before the rim, so there’s no hard seam.",
+  "The distortion carries past the rim and fades into the surroundings.",
+];
+
+const PRESETS = [
+  { name:"Reading glass", icon:'<circle cx="10" cy="10" r="6"/><path d="m14.5 14.5 6 6" stroke-width="2.4"/>',
+    v:{ style:0, strength:.45, mag:1.8, edge:0, shape:0, frame:2, handle:true, spec:.6, shade:.35, shadow:.5, ca:.25, radius:.26 } },
+  { name:"Marble", icon:'<circle cx="12" cy="12" r="8"/><path d="M8.5 9.5a4 4 0 0 1 3-2.5"/>',
+    v:{ style:1, strength:.65, mag:1.15, edge:0, shape:0, frame:1, handle:false, spec:.85, shade:.5, shadow:.7, ca:.45, radius:.22 } },
+  { name:"Water drop", icon:'<path d="M12 3c4 5 6 8 6 11a6 6 0 0 1-12 0c0-3 2-6 6-11Z"/>',
+    v:{ style:3, strength:.5, detail:.4, animate:true, mag:1.25, edge:1, spread:.45, shape:0, frame:0, handle:false, spec:.45, shade:.15, shadow:.15, ca:.2, radius:.3 } },
+  { name:"Concave", icon:'<path d="M5 5c3 3 3 11 0 14M19 5c-3 3-3 11 0 14"/>',
+    v:{ style:2, strength:.75, mag:1, edge:0, shape:1, frame:1, handle:false, spec:.5, shade:.4, shadow:.4, ca:.3, radius:.26 } },
+  { name:"Vortex", icon:'<path d="M12 12a2 2 0 1 1 2-2 4.5 4.5 0 1 1-6 4.5A7.5 7.5 0 1 1 19.5 9"/>',
+    v:{ style:4, strength:.7, mag:1.2, edge:2, spread:.5, shape:0, frame:0, handle:false, spec:.2, shade:0, shadow:0, ca:.2, radius:.24 } },
+  { name:"Crystal", icon:'<path d="M12 3 20 8v8l-8 5-8-5V8Z"/><path d="M12 3v18M4 8l16 8M20 8 4 16"/>',
+    v:{ style:6, strength:.55, detail:.4, mag:1.4, edge:0, shape:0, frame:1, handle:false, spec:.7, shade:.3, shadow:.5, ca:.35, radius:.28 } },
+];
+
+const pct = v => Math.round(v*100) + "%";
+const SLIDERS = {
+  distSliders: [
+    { key:"strength", label:"Strength", min:0, max:1, step:.01, fmt:pct },
+    { key:"detail", label:"Detail", min:0, max:1, step:.01, fmt:pct, show:()=>STYLES[S.style].detail },
+    { key:"ca", label:"Chromatic aberration", min:0, max:1, step:.01, fmt:pct },
+  ],
+  edgeSliders: [
+    { key:"spread", label:"Transition width", min:.02, max:1, step:.01, fmt:pct, show:()=>S.edge !== 0 },
+  ],
+  glassSliders: [
+    { key:"radius", label:"Glass size", min:.06, max:1, step:.005, fmt:pct },
+    { key:"mag", label:"Magnification", min:.5, max:6, step:.05, fmt:v=>v.toFixed(2)+"×" },
+  ],
+  lookSliders: [
+    { key:"spec", label:"Highlight", min:0, max:1, step:.01, fmt:pct },
+    { key:"shade", label:"Edge shading", min:0, max:1, step:.01, fmt:pct },
+    { key:"shadow", label:"Drop shadow", min:0, max:1, step:.01, fmt:pct },
+  ],
+};
+
+/* ================= WebGL ================= */
+const canvas = document.getElementById("gl");
+const gl = canvas.getContext("webgl", { premultipliedAlpha:true, preserveDrawingBuffer:true, antialias:false });
+if (!gl) { document.getElementById("stage").innerHTML = '<p style="color:var(--muted-foreground)">WebGL is not available in this browser, so the glass can’t render.</p>'; return; }
+const MAX_TEX = Math.min(gl.getParameter(gl.MAX_TEXTURE_SIZE), 8192);
+
+const VS = `attribute vec2 aPos; varying vec2 vUv;
+void main(){ vUv = vec2(aPos.x*.5+.5, .5-aPos.y*.5); gl_Position = vec4(aPos,0.,1.); }`;
+
+const FS = `precision highp float;
+varying vec2 vUv;
+uniform sampler2D uTex;
+uniform vec2 uRes, uCenter;
+uniform float uRadius, uMag, uStrength, uDetail, uCA, uSpread, uSpec, uShade, uShadow, uTime;
+uniform int uStyle, uEdge, uShape, uFrame, uHandle, uBypass;
+uniform vec3 uFrameCol;
+
+float facetEdge = 0.;
+
+vec4 tex(vec2 uv){
+  vec2 inb = step(vec2(0.), uv) * step(uv, vec2(1.));
+  return texture2D(uTex, clamp(uv, 0., 1.)) * inb.x * inb.y;
+}
+float shapeR(vec2 p){
+  if (uShape == 1) { vec2 a = abs(p); return pow(pow(a.x,4.) + pow(a.y,4.), .25); }
+  if (uShape == 2) return length(p * vec2(1./1.55, 1.));
+  return length(p);
+}
+float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float noise(vec2 p){
+  vec2 i = floor(p), f = fract(p); f = f*f*(3. - 2.*f);
+  return mix(mix(hash(i), hash(i + vec2(1,0)), f.x), mix(hash(i + vec2(0,1)), hash(i + vec2(1,1)), f.x), f.y);
+}
+float fbm(vec2 p){ return .6*noise(p) + .3*noise(p*2.1 + 3.7) + .1*noise(p*4.3 + 7.1); }
+
+/* warp a point in lens units (radius 1 = rim). r = shape radius of p */
+vec2 warp(vec2 p, float r){
+  float rc = min(r, 1.);
+  float s = uStrength;
+  if (uStyle == 0) {                       // convex
+    float k = s * 1.4;
+    return p * (1. + k*rc*rc) / (1. + k);
+  } else if (uStyle == 1) {                // glass ball (refraction through a sphere)
+    float rr = min(r, .995);
+    float h = sqrt(1. - rr*rr);
+    vec2 dir = r > 1e-5 ? p / r : vec2(0.);
+    vec3 n = normalize(vec3(dir * rr, h));
+    vec3 rf = refract(vec3(0., 0., -1.), n, 1. / (1. + s*1.1));
+    return p + rf.xy / max(-rf.z, .2) * .55;
+  } else if (uStyle == 2) {                // concave / pincushion
+    float k = -.6 * s;
+    return p * (1. + k*rc*rc) / (1. + k);
+  } else if (uStyle == 3) {                // ripple
+    float freq = mix(2., 14., uDetail);
+    float amp = s * .09;
+    float env = 1. - .6*rc;
+    return p * (1. + amp * env * sin(r * freq * 6.2832 - uTime * 4.));
+  } else if (uStyle == 4) {                // swirl
+    float a = s * 4.5 * pow(max(0., 1. - r), 2.);
+    float cs = cos(a), sn = sin(a);
+    return mat2(cs, sn, -sn, cs) * p;
+  } else if (uStyle == 5) {                // liquid
+    float f = mix(1.2, 7., uDetail);
+    vec2 t = vec2(uTime * .35, -uTime * .27);
+    vec2 n = vec2(fbm(p*f + t), fbm(p*f + vec2(5.2, 1.3) - t)) - .5;
+    return p * (1. - .25*s) + n * s * .55;
+  } else {                                  // faceted crystal (hex)
+    float sc = mix(1.6, 7., uDetail);
+    vec2 uv = p * sc;
+    vec2 R = vec2(1., 1.7320508); vec2 H = R * .5;
+    vec2 a = mod(uv, R) - H, b = mod(uv - H, R) - H;
+    vec2 gv = dot(a, a) < dot(b, b) ? a : b;
+    vec2 id = uv - gv;
+    vec2 ag = abs(gv);
+    facetEdge = max(dot(ag, normalize(vec2(1., 1.7320508))), ag.x) * 2.;  // 1 at facet edge
+    vec2 cc = id / sc;
+    return cc * (1. - .35*s) + (p - cc) * (1. - .75*s);
+  }
+}
+
+float sdSeg(vec2 p, vec2 a, vec2 b){
+  vec2 pa = p - a, ba = b - a;
+  float h = clamp(dot(pa, ba) / dot(ba, ba), 0., 1.);
+  return length(pa - ba*h);
+}
+
+void main(){
+  if (uBypass == 1) { gl_FragColor = tex(vUv); return; }
+  vec2 px = vUv * uRes;
+  vec2 c = uCenter * uRes;
+  float R = uRadius * min(uRes.x, uRes.y);
+  vec2 d = px - c;
+  vec2 p = d / R;
+  float r = shapeR(p);
+  vec2 dir = length(d) > 0. ? normalize(d) : vec2(0.);
+  float aa = 1.3 / R;
+
+  /* how much of the warp applies here */
+  float W;
+  if (uEdge == 0)      W = 1. - smoothstep(1. - aa, 1. + aa, r);
+  else if (uEdge == 1) W = 1. - smoothstep(1. - uSpread, 1., r);
+  else                 W = 1. - smoothstep(1., 1. + uSpread * 2., r);
+
+  vec2 wp = warp(p, r) / uMag;           // warped point, lens units, magnified
+  float ca = uCA * .045 * min(r, 1.4) * min(r, 1.4);
+  vec2 sR = mix(px, c + wp * (1. + ca) * R, W);
+  vec2 sG = mix(px, c + wp * R, W);
+  vec2 sB = mix(px, c + wp * (1. - ca) * R, W);
+  vec4 a = tex(sR / uRes), g = tex(sG / uRes), b = tex(sB / uRes);
+  vec4 col = vec4(a.r, g.g, b.b, max(g.a, max(a.a, b.a)));
+
+  float body = 1. - smoothstep(1. - aa, 1. + aa, r);       // inside the glass
+  vec2 tl = normalize(vec2(-1., -1.));
+
+  /* drop shadow cast by the lens (and handle) onto the image */
+  if (uShadow > 0.) {
+    vec2 so = vec2(.05, .09);
+    float rs = shapeR(p - so);
+    float sh = (1. - smoothstep(.92, 1.3, rs)) * (1. - body) * uShadow * .5;
+    col.rgb *= 1. - sh;
+  }
+
+  /* glass shading */
+  float rc = min(r, 1.);
+  float shadeIn = smoothstep(.55, 1., rc) * (.5 + .5*clamp(dot(dir, -tl), 0., 1.));
+  col.rgb *= 1. - uShade * .55 * shadeIn * body;
+  if (uStyle == 6) {
+    float e = smoothstep(.82, .98, facetEdge);
+    col.rgb = mix(col.rgb, col.rgb * .72 + vec3(.12) * col.a, e * uStrength * body);
+  }
+  vec2 hq = p - vec2(-.36, -.42);
+  hq = vec2(hq.x*.8 + hq.y*.6, -hq.x*.6 + hq.y*.8) * vec2(1., 1.9);
+  float bloom = exp(-dot(hq, hq) / .025) * .26;
+  float crescent = smoothstep(.84, .975, rc) * (1. - smoothstep(.975, 1., rc)) * clamp(dot(dir, tl), 0., 1.);
+  float s = (bloom + crescent * .55) * uSpec * body;
+  col = clamp(col + vec4(vec3(s), s), 0., 1.);
+
+  /* glass rim: a thin refractive band with a bright and a dark line */
+  if (uFrame == 1) {
+    float band = smoothstep(.94, .975, r) * (1. - smoothstep(1. - aa, 1. + aa, r));
+    float lit = .5 + .5*dot(dir, tl);
+    vec3 edgeCol = mix(col.rgb * vec3(.78, .9, .88), vec3(1.), .25 + .45*lit);
+    col = mix(col, vec4(edgeCol, 1.), band * .75);
+  }
+
+  /* metal ring */
+  float ringW = uFrame == 2 ? .075 : 0.;
+  if (uFrame == 2) {
+    float ring = smoothstep(1. - aa, 1. + aa, r) * (1. - smoothstep(1. + ringW - aa, 1. + ringW + aa, r));
+    float t = clamp((r - 1.) / ringW, 0., 1.);
+    float lit = .5 + .5*dot(dir, tl);
+    float bevel = sin(t * 3.14159);
+    vec3 metal = uFrameCol * (.45 + .55*lit) * (.7 + .45*bevel) + vec3(.25) * pow(bevel, 6.) * lit;
+    col = mix(col, vec4(clamp(metal, 0., 1.), 1.), ring);
+  }
+
+  /* handle */
+  if (uHandle == 1) {
+    vec2 hd = normalize(vec2(1., 1.));
+    float e0 = 1. / shapeR(hd) + ringW;
+    vec2 A = c + hd * R * (e0 - .03), B = c + hd * R * (e0 + .32);
+    vec2 C = c + hd * R * (e0 + .3),  D = c + hd * R * (e0 + 1.75);
+    vec2 nrm = vec2(-hd.y, hd.x);
+    // shadow
+    float dsh = sdSeg(px - vec2(.05, .09)*R, A, D) - .13*R;
+    col.rgb *= 1. - (1. - smoothstep(-.02*R, .12*R, dsh)) * uShadow * .45 * (1. - body);
+    // ferrule (metal collar)
+    float df = sdSeg(px, A, B) - .085*R;
+    float sf = clamp(dot(px - A, nrm) / (.085*R), -1., 1.);
+    vec3 fcol = uFrameCol * (.55 + .5*(1. - sf*sf)) + vec3(.2) * smoothstep(.2, 0., abs(sf + .35));
+    col = mix(col, vec4(clamp(fcol, 0., 1.), 1.), 1. - smoothstep(-1., 1., df));
+    // grip
+    float dg = sdSeg(px, C, D) - .12*R;
+    float sg = clamp(dot(px - C, nrm) / (.12*R), -1., 1.);
+    vec3 gcol = vec3(.2, .13, .09) * (.45 + .75*(1. - sg*sg)) + vec3(.16) * smoothstep(.25, 0., abs(sg + .4));
+    col = mix(col, vec4(gcol, 1.), 1. - smoothstep(-1., 1., dg));
+  }
+  gl_FragColor = col;
+}`;
+
+function compile(type, src){
+  const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+  return s;
+}
+const prog = gl.createProgram();
+gl.attachShader(prog, compile(gl.VERTEX_SHADER, VS));
+gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, FS));
+gl.linkProgram(prog);
+if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+gl.useProgram(prog);
+
+const buf = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+const aPos = gl.getAttribLocation(prog, "aPos");
+gl.enableVertexAttribArray(aPos);
+gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+
+const U = {};
+["uTex","uRes","uCenter","uRadius","uMag","uStrength","uDetail","uCA","uSpread","uSpec","uShade","uShadow","uTime",
+ "uStyle","uEdge","uShape","uFrame","uHandle","uBypass","uFrameCol"].forEach(n => U[n] = gl.getUniformLocation(prog, n));
+
+const texture = gl.createTexture();
+gl.bindTexture(gl.TEXTURE_2D, texture);
+gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+let src = { w:0, h:0, name:"" };
+const hexToRgb = h => { const n = parseInt(h.slice(1), 16); return [(n>>16&255)/255, (n>>8&255)/255, (n&255)/255]; };
+const t0 = performance.now();
+let frozenTime = 0;
+
+function draw(w, h, centre){
+  gl.viewport(0, 0, w, h);
+  gl.clearColor(0,0,0,0); gl.clear(gl.COLOR_BUFFER_BIT);
+  gl.uniform1i(U.uTex, 0);
+  gl.uniform2f(U.uRes, w, h);
+  gl.uniform2f(U.uCenter, centre.x, centre.y);
+  gl.uniform1f(U.uRadius, S.radius);
+  gl.uniform1f(U.uMag, S.mag);
+  gl.uniform1f(U.uStrength, S.strength);
+  gl.uniform1f(U.uDetail, S.detail);
+  gl.uniform1f(U.uCA, S.ca);
+  gl.uniform1f(U.uSpread, S.spread);
+  gl.uniform1f(U.uSpec, S.spec);
+  gl.uniform1f(U.uShade, S.shade);
+  gl.uniform1f(U.uShadow, S.shadow);
+  if (isAnimating()) frozenTime = (performance.now() - t0) / 1000;
+  gl.uniform1f(U.uTime, frozenTime);
+  gl.uniform1i(U.uStyle, S.style);
+  gl.uniform1i(U.uEdge, S.edge);
+  gl.uniform1i(U.uShape, S.shape);
+  gl.uniform1i(U.uFrame, S.frame);
+  gl.uniform1i(U.uHandle, S.handle ? 1 : 0);
+  gl.uniform1i(U.uBypass, bypass ? 1 : 0);
+  const fc = hexToRgb(S.frameColor);
+  gl.uniform3f(U.uFrameCol, fc[0], fc[1], fc[2]);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+}
+const isAnimating = () => S.animate && STYLES[S.style].anim;
+
+/* ================= sizing & render loop ================= */
+const stage = document.getElementById("stage");
+let preview = { w:1, h:1 };
+let exporting = false;
+
+function layout(){
+  if (!src.w) return;
+  const cs = getComputedStyle(stage);
+  const availW = stage.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+  const availH = stage.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+  const scale = Math.min(availW / src.w, availH / src.h);
+  const cssW = Math.max(1, Math.floor(src.w * scale)), cssH = Math.max(1, Math.floor(src.h * scale));
+  canvas.style.width = cssW + "px"; canvas.style.height = cssH + "px";
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  preview.w = Math.min(MAX_TEX, Math.round(cssW * dpr));
+  preview.h = Math.min(MAX_TEX, Math.round(cssH * dpr));
+  if (!exporting) { canvas.width = preview.w; canvas.height = preview.h; }
+  requestRender();
+}
+new ResizeObserver(layout).observe(stage);
+
+let rafId = 0;
+function requestRender(){ if (!rafId) rafId = requestAnimationFrame(frame); }
+function frame(){
+  rafId = 0;
+  if (exporting || !src.w) return;
+  const k = matchMedia("(prefers-reduced-motion: reduce)").matches ? 1 : .32;
+  cur.x += (S.cx - cur.x) * k; cur.y += (S.cy - cur.y) * k;
+  const moving = Math.abs(S.cx - cur.x) > 1e-4 || Math.abs(S.cy - cur.y) > 1e-4;
+  if (!moving) { cur.x = S.cx; cur.y = S.cy; }
+  draw(canvas.width, canvas.height, cur);
+  if (moving || isAnimating()) requestRender();
+}
+
+/* ================= loading sources ================= */
+const fileName = document.getElementById("fileName");
+const fileDims = document.getElementById("fileDims");
+const exportInfo = document.getElementById("exportInfo");
+
+function setSource(img, w, h, name){
+  const sc = Math.min(1, MAX_TEX / Math.max(w, h));
+  const tw = Math.max(1, Math.round(w * sc)), th = Math.max(1, Math.round(h * sc));
+  const c2 = document.createElement("canvas"); c2.width = tw; c2.height = th;
+  c2.getContext("2d").drawImage(img, 0, 0, tw, th);
+  gl.bindTexture(gl.TEXTURE_2D, texture);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, c2);
+  src = { w:tw, h:th, name };
+  fileName.textContent = name;
+  fileDims.textContent = tw + " × " + th + " px";
+  exportInfo.textContent = "Exports at " + tw + " × " + th + " px";
+  layout();
+}
+function loadBitmapFile(file){
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = () => { setSource(img, img.naturalWidth, img.naturalHeight, file.name || "pasted image"); URL.revokeObjectURL(url); };
+  img.onerror = () => { toast("Couldn’t open that file", "The browser can’t decode it as an image. Try PNG, JPG, WebP or SVG."); URL.revokeObjectURL(url); };
+  img.src = url;
+}
+function loadSVGText(text, name){
+  const doc = new DOMParser().parseFromString(text, "image/svg+xml");
+  const root = doc.documentElement;
+  if (doc.querySelector("parsererror") || !root || root.nodeName.toLowerCase() !== "svg") {
+    toast("That SVG didn’t parse", "Check that the markup starts with <svg> and is well-formed XML."); return;
+  }
+  let w = 0, h = 0;
+  const vb = (root.getAttribute("viewBox") || "").trim().split(/[\s,]+/).map(Number);
+  if (vb.length === 4 && vb[2] > 0 && vb[3] > 0) { w = vb[2]; h = vb[3]; }
+  const aw = parseFloat(root.getAttribute("width")), ah = parseFloat(root.getAttribute("height"));
+  const absW = /^[\d.]+(px)?$/.test(root.getAttribute("width") || ""), absH = /^[\d.]+(px)?$/.test(root.getAttribute("height") || "");
+  if (absW && absH && aw > 0 && ah > 0) { w = aw; h = ah; }
+  if (!w || !h) { w = 1024; h = 1024; }
+  if (!root.getAttribute("viewBox")) root.setAttribute("viewBox", `0 0 ${w} ${h}`);
+  const target = Math.min(MAX_TEX, 2400), sc = target / Math.max(w, h);
+  const rw = Math.round(w * sc), rh = Math.round(h * sc);
+  root.setAttribute("width", rw); root.setAttribute("height", rh);
+  if (!root.getAttribute("xmlns")) root.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+  const url = URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(root)], { type:"image/svg+xml" }));
+  const img = new Image();
+  img.onload = () => { setSource(img, rw, rh, name || "pasted.svg"); URL.revokeObjectURL(url); };
+  img.onerror = () => { toast("That SVG couldn’t render", "External images, fonts and scripts inside SVGs are blocked here. Inline them and try again."); URL.revokeObjectURL(url); };
+  img.src = url;
+}
+function loadFile(file){
+  if (!file) return;
+  const isSVG = file.type === "image/svg+xml" || /\.svg$/i.test(file.name);
+  if (isSVG) file.text().then(t => loadSVGText(t, file.name));
+  else if (file.type.startsWith("image/") || /\.(png|jpe?g|webp|gif|bmp|avif)$/i.test(file.name)) loadBitmapFile(file);
+  else toast("Unsupported file", "Choose an image (PNG, JPG, WebP, GIF) or an SVG.");
+}
+
+function sampleSVG(){
+  const W = 1600, H = 1000;
+  let rnd = 11; const Rn = () => (rnd = (rnd * 16807) % 2147483647) / 2147483647;
+  // a newspaper-ish page with a ruled grid, print, and a map: shows every kind of warp clearly
+  let grid = "";
+  for (let x = 0; x <= W; x += 40) grid += `<path d="M${x} 0V${H}" stroke="#2b6cb0" stroke-opacity="${x%200===0?.28:.11}"/>`;
+  for (let y = 0; y <= H; y += 40) grid += `<path d="M0 ${y}H${W}" stroke="#2b6cb0" stroke-opacity="${y%200===0?.28:.11}"/>`;
+  const words = "the quick brown fox jumps over a lazy dog while tiny letters hide under the glass waiting to be read closely".split(" ");
+  let text = "";
+  for (let i = 0; i < 14; i++) {
+    let line = ""; while (line.length < 52) line += words[Math.floor(Rn()*words.length)] + " ";
+    text += `<text x="90" y="${330 + i*38}" font-family="Georgia, 'Times New Roman', serif" font-size="25" fill="#1f2328">${line}</text>`;
+  }
+  let dots = "";
+  for (let i = 0; i < 12; i++) for (let j = 0; j < 12; j++)
+    dots += `<circle cx="${1010 + i*44}" cy="${320 + j*44}" r="${6 + ((i+j)%3)*3}" fill="${["#e4572e","#f3a712","#29335c","#669bbc"][(i*3+j)%4]}"/>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}">
+  <rect width="${W}" height="${H}" fill="#f7f5ef"/>
+  ${grid}
+  <text x="88" y="190" font-family="Georgia, 'Times New Roman', serif" font-size="118" fill="#111" letter-spacing="-3">Look closer.</text>
+  <text x="92" y="250" font-family="Helvetica, Arial, sans-serif" font-size="27" fill="#555">Drag the magnifying glass over the page</text>
+  ${text}
+  <rect x="980" y="290" width="540" height="540" rx="18" fill="#ffffff" stroke="#1f2328" stroke-width="3"/>
+  ${dots}
+  <path d="M0 920 Q 400 860 800 920 T 1600 920" stroke="#e4572e" stroke-width="10" fill="none"/>
+</svg>`;
+}
+const loadSample = () => loadSVGText(sampleSVG(), "sample.svg");
+
+/* ================= UI wiring ================= */
+const inputs = {};
+for (const [host, list] of Object.entries(SLIDERS)) {
+  const el = document.getElementById(host);
+  list.forEach(def => {
+    const f = document.createElement("div");
+    f.className = "field";
+    const id = "s_" + def.key;
+    f.innerHTML = `<div class="field-row"><label class="label" for="${id}">${def.label}</label><span class="value"></span></div>
+      <input type="range" id="${id}" min="${def.min}" max="${def.max}" step="${def.step}">`;
+    el.appendChild(f);
+    const inp = f.querySelector("input"), out = f.querySelector(".value");
+    inputs[def.key] = { inp, out, def, field:f };
+    inp.addEventListener("input", () => { S[def.key] = parseFloat(inp.value); syncSlider(def.key); requestRender(); });
+  });
+}
+function syncSlider(key){
+  const { inp, out, def, field } = inputs[key];
+  inp.value = S[key];
+  inp.style.setProperty("--p", ((S[key] - def.min) / (def.max - def.min) * 100) + "%");
+  out.textContent = def.fmt(S[key]);
+  if (def.show) field.classList.toggle("hidden", !def.show());
+}
+
+const styleHost = document.getElementById("styles");
+STYLES.forEach((st, i) => {
+  const b = document.createElement("button");
+  b.className = "btn btn-outline"; b.dataset.i = i;
+  b.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${st.icon}</svg>${st.name}`;
+  b.onclick = () => { S.style = i; clearPreset(); syncAll(); };
+  styleHost.appendChild(b);
+});
+
+const presetHost = document.getElementById("presets");
+PRESETS.forEach(p => {
+  const b = document.createElement("button");
+  b.className = "btn btn-outline";
+  b.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${p.icon}</svg>${p.name}`;
+  b.onclick = () => {
+    Object.assign(S, DEFAULTS, { cx:S.cx, cy:S.cy, follow:S.follow, frameColor:S.frameColor }, p.v);
+    presetHost.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b));
+    syncAll();
+  };
+  presetHost.appendChild(b);
+});
+const clearPreset = () => presetHost.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", "false"));
+
+const animSw = document.getElementById("animSw"), animRow = document.getElementById("animRow");
+const followSw = document.getElementById("followSw"), handleSw = document.getElementById("handleSw");
+const frameSel = document.getElementById("frameSel"), frameColor = document.getElementById("frameColor");
+const edgeTabs = [...document.querySelectorAll("[data-edge]")], shapeTabs = [...document.querySelectorAll("[data-shape]")];
+
+function syncAll(){
+  Object.keys(inputs).forEach(syncSlider);
+  styleHost.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", +b.dataset.i === S.style));
+  document.getElementById("styleHelp").textContent = STYLES[S.style].help;
+  animRow.classList.toggle("hidden", !STYLES[S.style].anim);
+  animSw.setAttribute("aria-checked", S.animate);
+  edgeTabs.forEach(t => t.setAttribute("aria-selected", +t.dataset.edge === S.edge));
+  document.getElementById("edgeHelp").textContent = EDGE_HELP[S.edge];
+  shapeTabs.forEach(t => t.setAttribute("aria-selected", +t.dataset.shape === S.shape));
+  followSw.setAttribute("aria-checked", S.follow);
+  handleSw.setAttribute("aria-checked", S.handle);
+  frameSel.value = String(S.frame);
+  frameColor.value = S.frameColor;
+  requestRender();
+}
+edgeTabs.forEach(t => t.onclick = () => { S.edge = +t.dataset.edge; clearPreset(); syncAll(); });
+shapeTabs.forEach(t => t.onclick = () => { S.shape = +t.dataset.shape; syncAll(); });
+animSw.onclick = () => { S.animate = !S.animate; syncAll(); };
+followSw.onclick = () => { S.follow = !S.follow; syncAll(); };
+handleSw.onclick = () => { S.handle = !S.handle; syncAll(); };
+frameSel.onchange = () => { S.frame = +frameSel.value; requestRender(); };
+frameColor.oninput = () => { S.frameColor = frameColor.value; requestRender(); };
+document.getElementById("resetBtn").onclick = () => { Object.assign(S, DEFAULTS, { cx:S.cx, cy:S.cy }); clearPreset(); syncAll(); };
+
+/* source controls */
+const fileInput = document.getElementById("fileInput"), dropzone = document.getElementById("dropzone");
+fileInput.onchange = () => { loadFile(fileInput.files[0]); fileInput.value = ""; };
+dropzone.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileInput.click(); } });
+document.getElementById("sampleBtn").onclick = loadSample;
+const svgBox = document.getElementById("svgBox"), svgText = document.getElementById("svgText");
+document.getElementById("svgToggle").onclick = () => { svgBox.classList.toggle("hidden"); if (!svgBox.classList.contains("hidden")) svgText.focus(); };
+document.getElementById("svgApply").onclick = () => {
+  const t = svgText.value.trim();
+  if (!t) { toast("Nothing to render", "Paste SVG markup into the box first."); return; }
+  loadSVGText(t, "pasted.svg");
+};
+[stage, dropzone].forEach(el => {
+  el.addEventListener("dragover", e => { e.preventDefault(); el.classList.add("dragover"); });
+  el.addEventListener("dragleave", () => el.classList.remove("dragover"));
+  el.addEventListener("drop", e => { e.preventDefault(); el.classList.remove("dragover"); loadFile(e.dataTransfer.files[0]); });
+});
+window.addEventListener("paste", e => {
+  if (e.target === svgText) return;
+  const items = [...(e.clipboardData?.items || [])];
+  const fileItem = items.find(i => i.kind === "file" && i.type.startsWith("image/"));
+  if (fileItem) { loadFile(fileItem.getAsFile()); return; }
+  const txt = e.clipboardData?.getData("text/plain") || "";
+  if (/<svg[\s>]/i.test(txt)) loadSVGText(txt, "pasted.svg");
+});
+
+/* glass interaction */
+function toNorm(e){
+  const r = canvas.getBoundingClientRect();
+  return { x:Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), y:Math.min(1, Math.max(0, (e.clientY - r.top) / r.height)) };
+}
+let dragging = false;
+canvas.addEventListener("pointerdown", e => { dragging = true; canvas.setPointerCapture(e.pointerId); const p = toNorm(e); S.cx = p.x; S.cy = p.y; requestRender(); });
+canvas.addEventListener("pointermove", e => { if (!dragging && !S.follow) return; const p = toNorm(e); S.cx = p.x; S.cy = p.y; requestRender(); });
+canvas.addEventListener("pointerup", () => dragging = false);
+canvas.addEventListener("pointercancel", () => dragging = false);
+canvas.addEventListener("wheel", e => {
+  e.preventDefault();
+  const d = inputs.mag.def;
+  S.mag = Math.min(d.max, Math.max(d.min, S.mag * Math.exp(-e.deltaY * .0015)));
+  syncSlider("mag"); requestRender();
+}, { passive:false });
+function bumpRadius(dv){
+  const d = inputs.radius.def;
+  S.radius = Math.min(d.max, Math.max(d.min, S.radius + dv)); syncSlider("radius"); requestRender();
+}
+canvas.addEventListener("keydown", e => {
+  const step = e.shiftKey ? .05 : .01; let used = true;
+  switch (e.key) {
+    case "ArrowLeft": S.cx = Math.max(0, S.cx - step); break;
+    case "ArrowRight": S.cx = Math.min(1, S.cx + step); break;
+    case "ArrowUp": S.cy = Math.max(0, S.cy - step); break;
+    case "ArrowDown": S.cy = Math.min(1, S.cy + step); break;
+    case "+": case "=": S.mag = Math.min(6, S.mag * 1.1); syncSlider("mag"); break;
+    case "-": case "_": S.mag = Math.max(.5, S.mag / 1.1); syncSlider("mag"); break;
+    default: used = false;
+  }
+  if (used) { e.preventDefault(); requestRender(); }
+});
+window.addEventListener("keydown", e => {
+  if (/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+  if (e.key === "[") bumpRadius(-.01);
+  else if (e.key === "]") bumpRadius(.01);
+  else if ((e.key === "c" || e.key === "C") && !e.repeat && !e.metaKey && !e.ctrlKey) setBypass(true);
+});
+window.addEventListener("keyup", e => { if (e.key === "c" || e.key === "C") setBypass(false); });
+
+const compareBtn = document.getElementById("compareBtn");
+function setBypass(on){ bypass = on; compareBtn.setAttribute("aria-pressed", on); requestRender(); }
+compareBtn.addEventListener("pointerdown", () => setBypass(true));
+["pointerup","pointerleave","pointercancel"].forEach(ev => compareBtn.addEventListener(ev, () => { if (bypass) setBypass(false); }));
+compareBtn.addEventListener("keydown", e => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); setBypass(true); } });
+compareBtn.addEventListener("keyup", () => setBypass(false));
+
+/* theme */
+document.getElementById("themeBtn").onclick = () => {
+  const root = document.documentElement;
+  const isDark = root.dataset.theme ? root.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  root.dataset.theme = isDark ? "light" : "dark";
+  try { localStorage.setItem("glass-scope-theme", root.dataset.theme); } catch (_) {}
+};
+try { const t = localStorage.getItem("glass-scope-theme"); if (t) document.documentElement.dataset.theme = t; } catch (_) {}
+
+/* ================= export ================= */
+let downloads = null;
+const inClaude = !!(window.claude && window.claude.use);
+if (inClaude) window.claude.use("downloads").then(d => { downloads = d; }).catch(() => {});
+const formatSel = document.getElementById("formatSel");
+
+async function exportImage(){
+  if (!src.w) return;
+  const fmt = formatSel.value;
+  const mime = { png:"image/png", jpg:"image/jpeg", webp:"image/webp" }[fmt];
+  exporting = true;
+  canvas.width = src.w; canvas.height = src.h;
+  draw(src.w, src.h, { x:S.cx, y:S.cy });
+  let blob;
+  try {
+    if (fmt === "jpg") {
+      const c2 = document.createElement("canvas"); c2.width = src.w; c2.height = src.h;
+      const ctx = c2.getContext("2d"); ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, src.w, src.h); ctx.drawImage(canvas, 0, 0);
+      blob = await new Promise(r => c2.toBlob(r, mime, .92));
+    } else {
+      blob = await new Promise(r => canvas.toBlob(r, mime, .95));
+    }
+  } finally {
+    exporting = false;
+    canvas.width = preview.w; canvas.height = preview.h;
+    cur = { x:S.cx, y:S.cy };
+    requestRender();
+  }
+  if (!blob) { toast("Export failed", "The browser couldn’t encode the image. Try PNG."); return; }
+  const filename = `${(src.name || "image").replace(/\.[^.]+$/, "")}-magnified.${fmt}`;
+  if (downloads) {
+    try { await downloads.save({ filename, data:blob }); toast("Exported", filename); }
+    catch (err) {
+      if (err && err.code === "declined") return;
+      if (err && err.code === "rate_limited") toast("A save prompt is already open", "Finish or close it, then export again.");
+      else toast("Saving isn’t available here", "This view doesn’t allow file downloads.");
+    }
+    return;
+  }
+  if (inClaude) { toast("Saving isn’t available here", "This view doesn’t allow file downloads."); return; }
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  toast("Exported", filename);
+}
+document.getElementById("exportBtn").onclick = exportImage;
+document.getElementById("exportBtn2").onclick = exportImage;
+
+/* ================= toast ================= */
+const toaster = document.getElementById("toaster");
+function toast(title, body){
+  const t = document.createElement("div");
+  t.className = "toast"; t.setAttribute("role", "status");
+  const s = document.createElement("strong"); s.textContent = title; t.appendChild(s);
+  if (body) { const p = document.createElement("p"); p.textContent = body; t.appendChild(p); }
+  toaster.appendChild(t);
+  setTimeout(() => t.remove(), 3800);
+}
+
+presetHost.firstChild.setAttribute("aria-pressed", "true");
+syncAll();
+loadSample();
+})();
+</script>
+</body>
+</html>
