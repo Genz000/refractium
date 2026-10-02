@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Glass Scope — magnifier distortion</title>
+<title>Refract</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 26'%3E%3Crect width='26' height='26' rx='6' fill='%2309090b'/%3E%3Ccircle cx='13' cy='13' r='7.5' fill='none' stroke='%23fafafa' stroke-width='1.6'/%3E%3Cpath d='M2.5 10.5h4.2l12.6 5h4.2' fill='none' stroke='%23fafafa' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -69,8 +70,6 @@ header.topbar{
 .brand{ display:flex; align-items:center; gap:10px; min-width:0; }
 .brand svg{ flex:none; }
 .brand h1{ font-size:15px; font-weight:600; margin:0; letter-spacing:-0.01em; }
-.brand p{ margin:0; font-size:13px; color:var(--muted-foreground); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.brand .titles{ display:flex; align-items:baseline; gap:10px; min-width:0; }
 .topbar .actions{ margin-left:auto; display:flex; gap:8px; align-items:center; }
 
 main.workspace{ display:grid; grid-template-columns:minmax(0,1fr) 340px; min-height:0; }
@@ -207,18 +206,11 @@ textarea.textarea{
 .dropzone strong{ font-weight:500; font-size:13.5px; }
 .dropzone span{ font-size:12.5px; color:var(--muted-foreground); }
 
-.preset-grid{ display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:6px; }
-.preset-grid .btn{ height:auto; padding:8px 6px; flex-direction:column; gap:4px; font-size:12.5px; }
-.preset-grid .btn svg{ width:22px; height:22px; }
 .style-grid{ display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:6px; }
 .style-grid .btn{ height:auto; padding:8px 4px; flex-direction:column; gap:4px; font-size:12px; }
 .style-grid .btn svg{ width:20px; height:20px; }
-.style-grid .btn[aria-pressed="true"], .preset-grid .btn[aria-pressed="true"]{ border-color:var(--primary); box-shadow:inset 0 0 0 1px var(--primary); background:var(--background); }
+.style-grid .btn[aria-pressed="true"]{ border-color:var(--primary); box-shadow:inset 0 0 0 1px var(--primary); background:var(--background); }
 .help{ margin:0; font-size:12.5px; color:var(--muted-foreground); }
-.color-swatch{
-  position:relative; width:36px; height:36px; border-radius:calc(var(--radius) - 2px); border:1px solid var(--input); overflow:hidden; flex:none;
-}
-.color-swatch input{ position:absolute; inset:-8px; width:52px; height:52px; border:0; padding:0; cursor:pointer; background:none; }
 .row{ display:flex; gap:8px; align-items:center; }
 .row > .grow{ flex:1; min-width:0; }
 .badge{
@@ -244,7 +236,6 @@ textarea.textarea{
   main.workspace{ grid-template-columns:1fr; }
   .stage{ height:62vh; flex:none; padding:12px; }
   aside.panel{ border-left:0; border-top:1px solid var(--border); overflow:visible; }
-  .brand p{ display:none; }
   .statusbar .hints{ margin-left:0; }
 }
 @media (max-width: 480px){
@@ -258,15 +249,12 @@ textarea.textarea{
 <div class="app">
   <header class="topbar">
     <div class="brand">
-      <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true">
-        <circle cx="13" cy="13" r="11.5" fill="none" stroke="currentColor" stroke-width="2"/>
-        <circle cx="13" cy="13" r="6" fill="none" stroke="currentColor" stroke-width="1" opacity=".45"/>
-        <path d="M13 3.5v5.5M13 17v5.5M3.5 13H9M17 13h5.5" stroke="currentColor" stroke-width="1.4"/>
+      <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="13" cy="13" r="9" stroke-width="1.8"/>
+        <path d="M1.5 10h5.2l12.6 6h5.2" stroke-width="1.8"/>
+        <path d="M6.7 10h12.6" stroke-width="1" opacity=".35" stroke-dasharray="1.6 1.8"/>
       </svg>
-      <div class="titles">
-        <h1>Glass Scope</h1>
-        <p>Magnifying glass distortion for images and SVGs</p>
-      </div>
+      <h1>Refract</h1>
     </div>
     <div class="actions">
       <button class="btn btn-outline btn-sm" id="compareBtn" aria-pressed="false" title="Hold to see the original (C)">
@@ -287,7 +275,7 @@ textarea.textarea{
     <section class="stage-wrap" aria-label="Preview">
       <div class="stage" id="stage">
         <div class="canvas-holder" id="holder">
-          <canvas id="gl" tabindex="0" aria-label="Distorted image preview. Drag or use arrow keys to move the magnifier."></canvas>
+          <canvas id="gl" tabindex="0" aria-label="Distorted image preview. Drag or use arrow keys to move the glass."></canvas>
         </div>
       </div>
       <div class="statusbar">
@@ -323,8 +311,11 @@ textarea.textarea{
       </div>
 
       <div class="section">
-        <div class="section-head"><h2>Presets</h2></div>
-        <div class="preset-grid" id="presets"></div>
+        <div class="section-head"><h2>Preset</h2></div>
+        <div class="select-wrap">
+          <select class="select" id="presetSel" aria-label="Preset"></select>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+        </div>
       </div>
 
       <div class="section">
@@ -372,24 +363,6 @@ textarea.textarea{
       <div class="section">
         <div class="section-head"><h2>Look</h2></div>
         <div class="stack">
-          <div class="field">
-            <label class="label" for="frameSel">Frame</label>
-            <div class="row">
-              <div class="select-wrap grow">
-                <select class="select" id="frameSel">
-                  <option value="0">None</option>
-                  <option value="1">Glass rim</option>
-                  <option value="2">Metal ring</option>
-                </select>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
-              </div>
-              <label class="color-swatch" title="Ring color"><input type="color" id="frameColor" aria-label="Ring color"></label>
-            </div>
-          </div>
-          <div class="switch-row">
-            <div><div class="label">Handle</div><div class="desc">Classic magnifying glass handle</div></div>
-            <button class="switch" role="switch" aria-checked="false" id="handleSw" aria-label="Show handle"></button>
-          </div>
           <div class="stack" id="lookSliders"></div>
         </div>
       </div>
@@ -423,7 +396,7 @@ const DEFAULTS = {
   cx:.5, cy:.5, radius:.26, mag:1.8, shape:0,
   style:0, strength:.45, detail:.5, animate:false, ca:.25,
   edge:0, spread:.3,
-  frame:2, frameColor:"#b9bec7", handle:true, spec:.6, shade:.35, shadow:.5,
+  spec:.6, shade:.35, shadow:.4,
   follow:false
 };
 const S = Object.assign({}, DEFAULTS);
@@ -431,7 +404,7 @@ let cur = { x:S.cx, y:S.cy };
 let bypass = false;
 
 const STYLES = [
-  { name:"Convex", help:"A classic magnifying lens: the centre swells and the rim compresses.", detail:false, anim:false,
+  { name:"Convex", help:"A convex lens: the centre swells and the rim compresses.", detail:false, anim:false,
     icon:'<circle cx="12" cy="12" r="8"/><path d="M8 12c0-3 1.8-5 4-5s4 2 4 5-1.8 5-4 5-4-2-4-5Z"/>' },
   { name:"Glass ball", help:"A solid sphere bending light hard toward the edge, like a marble.", detail:false, anim:false,
     icon:'<circle cx="12" cy="12" r="8"/><path d="M8.5 9.5a4 4 0 0 1 3-2.5"/>' },
@@ -454,18 +427,12 @@ const EDGE_HELP = [
 ];
 
 const PRESETS = [
-  { name:"Reading glass", icon:'<circle cx="10" cy="10" r="6"/><path d="m14.5 14.5 6 6" stroke-width="2.4"/>',
-    v:{ style:0, strength:.45, mag:1.8, edge:0, shape:0, frame:2, handle:true, spec:.6, shade:.35, shadow:.5, ca:.25, radius:.26 } },
-  { name:"Marble", icon:'<circle cx="12" cy="12" r="8"/><path d="M8.5 9.5a4 4 0 0 1 3-2.5"/>',
-    v:{ style:1, strength:.65, mag:1.15, edge:0, shape:0, frame:1, handle:false, spec:.85, shade:.5, shadow:.7, ca:.45, radius:.22 } },
-  { name:"Water drop", icon:'<path d="M12 3c4 5 6 8 6 11a6 6 0 0 1-12 0c0-3 2-6 6-11Z"/>',
-    v:{ style:3, strength:.5, detail:.4, animate:true, mag:1.25, edge:1, spread:.45, shape:0, frame:0, handle:false, spec:.45, shade:.15, shadow:.15, ca:.2, radius:.3 } },
-  { name:"Concave", icon:'<path d="M5 5c3 3 3 11 0 14M19 5c-3 3-3 11 0 14"/>',
-    v:{ style:2, strength:.75, mag:1, edge:0, shape:1, frame:1, handle:false, spec:.5, shade:.4, shadow:.4, ca:.3, radius:.26 } },
-  { name:"Vortex", icon:'<path d="M12 12a2 2 0 1 1 2-2 4.5 4.5 0 1 1-6 4.5A7.5 7.5 0 1 1 19.5 9"/>',
-    v:{ style:4, strength:.7, mag:1.2, edge:2, spread:.5, shape:0, frame:0, handle:false, spec:.2, shade:0, shadow:0, ca:.2, radius:.24 } },
-  { name:"Crystal", icon:'<path d="M12 3 20 8v8l-8 5-8-5V8Z"/><path d="M12 3v18M4 8l16 8M20 8 4 16"/>',
-    v:{ style:6, strength:.55, detail:.4, mag:1.4, edge:0, shape:0, frame:1, handle:false, spec:.7, shade:.3, shadow:.5, ca:.35, radius:.28 } },
+  { name:"Lens",       v:{ style:0, strength:.45, mag:1.8, edge:0, shape:0, spec:.6, shade:.35, shadow:.4, ca:.25, radius:.26 } },
+  { name:"Marble",     v:{ style:1, strength:.65, mag:1.15, edge:0, shape:0, spec:.85, shade:.5, shadow:.7, ca:.45, radius:.22 } },
+  { name:"Water drop", v:{ style:3, strength:.5, detail:.4, animate:true, mag:1.25, edge:1, spread:.45, shape:0, spec:.45, shade:.15, shadow:.15, ca:.2, radius:.3 } },
+  { name:"Concave",    v:{ style:2, strength:.75, mag:1, edge:0, shape:1, spec:.5, shade:.4, shadow:.4, ca:.3, radius:.26 } },
+  { name:"Vortex",     v:{ style:4, strength:.7, mag:1.2, edge:2, spread:.5, shape:0, spec:.2, shade:0, shadow:0, ca:.2, radius:.24 } },
+  { name:"Crystal",    v:{ style:6, strength:.55, detail:.4, mag:1.4, edge:0, shape:0, spec:.7, shade:.3, shadow:.5, ca:.35, radius:.28 } },
 ];
 
 const pct = v => Math.round(v*100) + "%";
@@ -503,8 +470,7 @@ varying vec2 vUv;
 uniform sampler2D uTex;
 uniform vec2 uRes, uCenter;
 uniform float uRadius, uMag, uStrength, uDetail, uCA, uSpread, uSpec, uShade, uShadow, uTime;
-uniform int uStyle, uEdge, uShape, uFrame, uHandle, uBypass;
-uniform vec3 uFrameCol;
+uniform int uStyle, uEdge, uShape, uBypass;
 
 float facetEdge = 0.;
 
@@ -569,26 +535,21 @@ vec2 warp(vec2 p, float r){
   }
 }
 
-float sdSeg(vec2 p, vec2 a, vec2 b){
-  vec2 pa = p - a, ba = b - a;
-  float h = clamp(dot(pa, ba) / dot(ba, ba), 0., 1.);
-  return length(pa - ba*h);
-}
-
-void main(){
-  if (uBypass == 1) { gl_FragColor = tex(vUv); return; }
-  vec2 px = vUv * uRes;
+/* one shading sample at pixel position px */
+vec4 shadeAt(vec2 px){
   vec2 c = uCenter * uRes;
   float R = uRadius * min(uRes.x, uRes.y);
   vec2 d = px - c;
   vec2 p = d / R;
   float r = shapeR(p);
   vec2 dir = length(d) > 0. ? normalize(d) : vec2(0.);
-  float aa = 1.3 / R;
+  float aa = .6 / R;
+  float body = 1. - smoothstep(1. - aa, 1. + aa, r);       // inside the glass
 
-  /* how much of the warp applies here */
+  /* how much of the warp applies here. A clean edge warps fully inside and
+     blends colours (not sample positions) across the rim, so no stray texels */
   float W;
-  if (uEdge == 0)      W = 1. - smoothstep(1. - aa, 1. + aa, r);
+  if (uEdge == 0)      W = 1.;
   else if (uEdge == 1) W = 1. - smoothstep(1. - uSpread, 1., r);
   else                 W = 1. - smoothstep(1., 1. + uSpread * 2., r);
 
@@ -599,22 +560,22 @@ void main(){
   vec2 sB = mix(px, c + wp * (1. - ca) * R, W);
   vec4 a = tex(sR / uRes), g = tex(sG / uRes), b = tex(sB / uRes);
   vec4 col = vec4(a.r, g.g, b.b, max(g.a, max(a.a, b.a)));
+  if (uEdge == 0) col = mix(tex(px / uRes), col, body);
 
-  float body = 1. - smoothstep(1. - aa, 1. + aa, r);       // inside the glass
   vec2 tl = normalize(vec2(-1., -1.));
 
-  /* drop shadow cast by the lens (and handle) onto the image */
+  /* soft shadow cast by the glass, fading in away from the rim (no dark seam) */
   if (uShadow > 0.) {
     vec2 so = vec2(.05, .09);
     float rs = shapeR(p - so);
-    float sh = (1. - smoothstep(.92, 1.3, rs)) * (1. - body) * uShadow * .5;
+    float sh = (1. - smoothstep(.85, 1.35, rs)) * smoothstep(1., 1.08, r) * uShadow * .45;
     col.rgb *= 1. - sh;
   }
 
-  /* glass shading */
+  /* glass shading, eased off right at the rim */
   float rc = min(r, 1.);
-  float shadeIn = smoothstep(.55, 1., rc) * (.5 + .5*clamp(dot(dir, -tl), 0., 1.));
-  col.rgb *= 1. - uShade * .55 * shadeIn * body;
+  float shadeIn = smoothstep(.55, .97, rc) * (1. - .6 * smoothstep(.97, 1., rc)) * (.5 + .5*clamp(dot(dir, -tl), 0., 1.));
+  col.rgb *= 1. - uShade * .5 * shadeIn * body;
   if (uStyle == 6) {
     float e = smoothstep(.82, .98, facetEdge);
     col.rgb = mix(col.rgb, col.rgb * .72 + vec3(.12) * col.a, e * uStrength * body);
@@ -624,49 +585,15 @@ void main(){
   float bloom = exp(-dot(hq, hq) / .025) * .26;
   float crescent = smoothstep(.84, .975, rc) * (1. - smoothstep(.975, 1., rc)) * clamp(dot(dir, tl), 0., 1.);
   float s = (bloom + crescent * .55) * uSpec * body;
-  col = clamp(col + vec4(vec3(s), s), 0., 1.);
+  return clamp(col + vec4(vec3(s), s), 0., 1.);
+}
 
-  /* glass rim: a thin refractive band with a bright and a dark line */
-  if (uFrame == 1) {
-    float band = smoothstep(.94, .975, r) * (1. - smoothstep(1. - aa, 1. + aa, r));
-    float lit = .5 + .5*dot(dir, tl);
-    vec3 edgeCol = mix(col.rgb * vec3(.78, .9, .88), vec3(1.), .25 + .45*lit);
-    col = mix(col, vec4(edgeCol, 1.), band * .75);
-  }
-
-  /* metal ring */
-  float ringW = uFrame == 2 ? .075 : 0.;
-  if (uFrame == 2) {
-    float ring = smoothstep(1. - aa, 1. + aa, r) * (1. - smoothstep(1. + ringW - aa, 1. + ringW + aa, r));
-    float t = clamp((r - 1.) / ringW, 0., 1.);
-    float lit = .5 + .5*dot(dir, tl);
-    float bevel = sin(t * 3.14159);
-    vec3 metal = uFrameCol * (.45 + .55*lit) * (.7 + .45*bevel) + vec3(.25) * pow(bevel, 6.) * lit;
-    col = mix(col, vec4(clamp(metal, 0., 1.), 1.), ring);
-  }
-
-  /* handle */
-  if (uHandle == 1) {
-    vec2 hd = normalize(vec2(1., 1.));
-    float e0 = 1. / shapeR(hd) + ringW;
-    vec2 A = c + hd * R * (e0 - .03), B = c + hd * R * (e0 + .32);
-    vec2 C = c + hd * R * (e0 + .3),  D = c + hd * R * (e0 + 1.75);
-    vec2 nrm = vec2(-hd.y, hd.x);
-    // shadow
-    float dsh = sdSeg(px - vec2(.05, .09)*R, A, D) - .13*R;
-    col.rgb *= 1. - (1. - smoothstep(-.02*R, .12*R, dsh)) * uShadow * .45 * (1. - body);
-    // ferrule (metal collar)
-    float df = sdSeg(px, A, B) - .085*R;
-    float sf = clamp(dot(px - A, nrm) / (.085*R), -1., 1.);
-    vec3 fcol = uFrameCol * (.55 + .5*(1. - sf*sf)) + vec3(.2) * smoothstep(.2, 0., abs(sf + .35));
-    col = mix(col, vec4(clamp(fcol, 0., 1.), 1.), 1. - smoothstep(-1., 1., df));
-    // grip
-    float dg = sdSeg(px, C, D) - .12*R;
-    float sg = clamp(dot(px - C, nrm) / (.12*R), -1., 1.);
-    vec3 gcol = vec3(.2, .13, .09) * (.45 + .75*(1. - sg*sg)) + vec3(.16) * smoothstep(.25, 0., abs(sg + .4));
-    col = mix(col, vec4(gcol, 1.), 1. - smoothstep(-1., 1., dg));
-  }
-  gl_FragColor = col;
+void main(){
+  if (uBypass == 1) { gl_FragColor = tex(vUv); return; }
+  vec2 px = vUv * uRes;
+  /* 4x rotated-grid supersampling: smooth rim, highlights and compressed detail */
+  gl_FragColor = .25 * (shadeAt(px + vec2( .125,  .375)) + shadeAt(px + vec2(-.375,  .125))
+                      + shadeAt(px + vec2( .375, -.125)) + shadeAt(px + vec2(-.125, -.375)));
 }`;
 
 function compile(type, src){
@@ -690,7 +617,7 @@ gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
 
 const U = {};
 ["uTex","uRes","uCenter","uRadius","uMag","uStrength","uDetail","uCA","uSpread","uSpec","uShade","uShadow","uTime",
- "uStyle","uEdge","uShape","uFrame","uHandle","uBypass","uFrameCol"].forEach(n => U[n] = gl.getUniformLocation(prog, n));
+ "uStyle","uEdge","uShape","uBypass"].forEach(n => U[n] = gl.getUniformLocation(prog, n));
 
 const texture = gl.createTexture();
 gl.bindTexture(gl.TEXTURE_2D, texture);
@@ -701,7 +628,6 @@ gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
 
 let src = { w:0, h:0, name:"" };
-const hexToRgb = h => { const n = parseInt(h.slice(1), 16); return [(n>>16&255)/255, (n>>8&255)/255, (n&255)/255]; };
 const t0 = performance.now();
 let frozenTime = 0;
 
@@ -725,11 +651,7 @@ function draw(w, h, centre){
   gl.uniform1i(U.uStyle, S.style);
   gl.uniform1i(U.uEdge, S.edge);
   gl.uniform1i(U.uShape, S.shape);
-  gl.uniform1i(U.uFrame, S.frame);
-  gl.uniform1i(U.uHandle, S.handle ? 1 : 0);
   gl.uniform1i(U.uBypass, bypass ? 1 : 0);
-  const fc = hexToRgb(S.frameColor);
-  gl.uniform3f(U.uFrameCol, fc[0], fc[1], fc[2]);
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 }
 const isAnimating = () => S.animate && STYLES[S.style].anim;
@@ -845,7 +767,7 @@ function sampleSVG(){
   <rect width="${W}" height="${H}" fill="#f7f5ef"/>
   ${grid}
   <text x="88" y="190" font-family="Georgia, 'Times New Roman', serif" font-size="118" fill="#111" letter-spacing="-3">Look closer.</text>
-  <text x="92" y="250" font-family="Helvetica, Arial, sans-serif" font-size="27" fill="#555">Drag the magnifying glass over the page</text>
+  <text x="92" y="250" font-family="Helvetica, Arial, sans-serif" font-size="27" fill="#555">Drag the glass over the page</text>
   ${text}
   <rect x="980" y="290" width="540" height="540" rx="18" fill="#ffffff" stroke="#1f2328" stroke-width="3"/>
   ${dots}
@@ -867,7 +789,7 @@ for (const [host, list] of Object.entries(SLIDERS)) {
     el.appendChild(f);
     const inp = f.querySelector("input"), out = f.querySelector(".value");
     inputs[def.key] = { inp, out, def, field:f };
-    inp.addEventListener("input", () => { S[def.key] = parseFloat(inp.value); syncSlider(def.key); requestRender(); });
+    inp.addEventListener("input", () => { S[def.key] = parseFloat(inp.value); syncSlider(def.key); clearPreset(); requestRender(); });
   });
 }
 function syncSlider(key){
@@ -887,23 +809,17 @@ STYLES.forEach((st, i) => {
   styleHost.appendChild(b);
 });
 
-const presetHost = document.getElementById("presets");
-PRESETS.forEach(p => {
-  const b = document.createElement("button");
-  b.className = "btn btn-outline";
-  b.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${p.icon}</svg>${p.name}`;
-  b.onclick = () => {
-    Object.assign(S, DEFAULTS, { cx:S.cx, cy:S.cy, follow:S.follow, frameColor:S.frameColor }, p.v);
-    presetHost.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b));
-    syncAll();
-  };
-  presetHost.appendChild(b);
-});
-const clearPreset = () => presetHost.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", "false"));
+const presetSel = document.getElementById("presetSel");
+presetSel.innerHTML = PRESETS.map((p, i) => `<option value="${i}">${p.name}</option>`).join("")
+  + `<option value="custom" disabled hidden>Custom</option>`;
+presetSel.onchange = () => {
+  Object.assign(S, DEFAULTS, { cx:S.cx, cy:S.cy, follow:S.follow }, PRESETS[+presetSel.value].v);
+  syncAll();
+};
+const clearPreset = () => { presetSel.value = "custom"; };
 
 const animSw = document.getElementById("animSw"), animRow = document.getElementById("animRow");
-const followSw = document.getElementById("followSw"), handleSw = document.getElementById("handleSw");
-const frameSel = document.getElementById("frameSel"), frameColor = document.getElementById("frameColor");
+const followSw = document.getElementById("followSw");
 const edgeTabs = [...document.querySelectorAll("[data-edge]")], shapeTabs = [...document.querySelectorAll("[data-shape]")];
 
 function syncAll(){
@@ -916,19 +832,13 @@ function syncAll(){
   document.getElementById("edgeHelp").textContent = EDGE_HELP[S.edge];
   shapeTabs.forEach(t => t.setAttribute("aria-selected", +t.dataset.shape === S.shape));
   followSw.setAttribute("aria-checked", S.follow);
-  handleSw.setAttribute("aria-checked", S.handle);
-  frameSel.value = String(S.frame);
-  frameColor.value = S.frameColor;
   requestRender();
 }
 edgeTabs.forEach(t => t.onclick = () => { S.edge = +t.dataset.edge; clearPreset(); syncAll(); });
-shapeTabs.forEach(t => t.onclick = () => { S.shape = +t.dataset.shape; syncAll(); });
-animSw.onclick = () => { S.animate = !S.animate; syncAll(); };
+shapeTabs.forEach(t => t.onclick = () => { S.shape = +t.dataset.shape; clearPreset(); syncAll(); });
+animSw.onclick = () => { S.animate = !S.animate; clearPreset(); syncAll(); };
 followSw.onclick = () => { S.follow = !S.follow; syncAll(); };
-handleSw.onclick = () => { S.handle = !S.handle; syncAll(); };
-frameSel.onchange = () => { S.frame = +frameSel.value; requestRender(); };
-frameColor.oninput = () => { S.frameColor = frameColor.value; requestRender(); };
-document.getElementById("resetBtn").onclick = () => { Object.assign(S, DEFAULTS, { cx:S.cx, cy:S.cy }); clearPreset(); syncAll(); };
+document.getElementById("resetBtn").onclick = () => { Object.assign(S, DEFAULTS, { cx:S.cx, cy:S.cy, follow:S.follow }); presetSel.value = "0"; syncAll(); };
 
 /* source controls */
 const fileInput = document.getElementById("fileInput"), dropzone = document.getElementById("dropzone");
@@ -1009,9 +919,9 @@ document.getElementById("themeBtn").onclick = () => {
   const root = document.documentElement;
   const isDark = root.dataset.theme ? root.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
   root.dataset.theme = isDark ? "light" : "dark";
-  try { localStorage.setItem("glass-scope-theme", root.dataset.theme); } catch (_) {}
+  try { localStorage.setItem("refract-theme", root.dataset.theme); } catch (_) {}
 };
-try { const t = localStorage.getItem("glass-scope-theme"); if (t) document.documentElement.dataset.theme = t; } catch (_) {}
+try { const t = localStorage.getItem("refract-theme"); if (t) document.documentElement.dataset.theme = t; } catch (_) {}
 
 /* ================= export ================= */
 let downloads = null;
@@ -1042,7 +952,7 @@ async function exportImage(){
     requestRender();
   }
   if (!blob) { toast("Export failed", "The browser couldn’t encode the image. Try PNG."); return; }
-  const filename = `${(src.name || "image").replace(/\.[^.]+$/, "")}-magnified.${fmt}`;
+  const filename = `${(src.name || "image").replace(/\.[^.]+$/, "")}-refract.${fmt}`;
   if (downloads) {
     try { await downloads.save({ filename, data:blob }); toast("Exported", filename); }
     catch (err) {
@@ -1073,7 +983,7 @@ function toast(title, body){
   setTimeout(() => t.remove(), 3800);
 }
 
-presetHost.firstChild.setAttribute("aria-pressed", "true");
+presetSel.value = "0";
 syncAll();
 loadSample();
 })();
