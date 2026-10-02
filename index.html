@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Refract</title>
+<title>Refractium</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 26'%3E%3Crect width='26' height='26' rx='6' fill='%2309090b'/%3E%3Ccircle cx='13' cy='13' r='7.5' fill='none' stroke='%23fafafa' stroke-width='1.6'/%3E%3Cpath d='M2.5 10.5h4.2l12.6 5h4.2' fill='none' stroke='%23fafafa' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -254,7 +254,7 @@ textarea.textarea{
         <path d="M1.5 10h5.2l12.6 6h5.2" stroke-width="1.8"/>
         <path d="M6.7 10h12.6" stroke-width="1" opacity=".35" stroke-dasharray="1.6 1.8"/>
       </svg>
-      <h1>Refract</h1>
+      <h1>Refractium</h1>
     </div>
     <div class="actions">
       <button class="btn btn-outline btn-sm" id="compareBtn" aria-pressed="false" title="Hold to see the original (C)">
@@ -349,7 +349,7 @@ textarea.textarea{
         <div class="stack">
           <div class="tabs" role="tablist" aria-label="Glass shape">
             <button role="tab" data-shape="0">Round</button>
-            <button role="tab" data-shape="1">Rounded square</button>
+            <button role="tab" data-shape="1">Squircle</button>
             <button role="tab" data-shape="2">Wide</button>
           </div>
           <div class="stack" id="glassSliders"></div>
@@ -749,29 +749,53 @@ function loadFile(file){
 
 function sampleSVG(){
   const W = 1600, H = 1000;
-  let rnd = 11; const Rn = () => (rnd = (rnd * 16807) % 2147483647) / 2147483647;
-  // a newspaper-ish page with a ruled grid, print, and a map: shows every kind of warp clearly
+  // dark, futuristic plate: aurora light, a fine grid, rings, waves and type, all of which show warps clearly
+  const SANS = `font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"`;
+  const MONO = `font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace"`;
   let grid = "";
-  for (let x = 0; x <= W; x += 40) grid += `<path d="M${x} 0V${H}" stroke="#2b6cb0" stroke-opacity="${x%200===0?.28:.11}"/>`;
-  for (let y = 0; y <= H; y += 40) grid += `<path d="M0 ${y}H${W}" stroke="#2b6cb0" stroke-opacity="${y%200===0?.28:.11}"/>`;
-  const words = "the quick brown fox jumps over a lazy dog while tiny letters hide under the glass waiting to be read closely".split(" ");
-  let text = "";
-  for (let i = 0; i < 14; i++) {
-    let line = ""; while (line.length < 52) line += words[Math.floor(Rn()*words.length)] + " ";
-    text += `<text x="90" y="${330 + i*38}" font-family="Georgia, 'Times New Roman', serif" font-size="25" fill="#1f2328">${line}</text>`;
+  for (let x = 0; x <= W; x += 40) grid += `<path d="M${x} 0V${H}" stroke-opacity="${x%200===0?.13:.05}"/>`;
+  for (let y = 0; y <= H; y += 40) grid += `<path d="M0 ${y}H${W}" stroke-opacity="${y%200===0?.13:.05}"/>`;
+  let rings = "";
+  for (let r = 30, i = 0; r <= 420; r += 22, i++)
+    rings += `<circle r="${r}" stroke-opacity="${i%4===0?.55:.18}" stroke-width="${i%4===0?2:1.2}"/>`;
+  let waves = "";
+  for (let k = 0; k < 7; k++) {
+    let d = `M0 ${812 + k*18}`;
+    for (let x = 0; x <= W; x += 20) d += ` L${x} ${(812 + k*18 + Math.sin(x/90 + k*.45) * 16).toFixed(1)}`;
+    waves += `<path d="${d}" stroke="url(#line)" stroke-opacity="${.25 + k*.1}" stroke-width="1.6"/>`;
   }
   let dots = "";
-  for (let i = 0; i < 12; i++) for (let j = 0; j < 12; j++)
-    dots += `<circle cx="${1010 + i*44}" cy="${320 + j*44}" r="${6 + ((i+j)%3)*3}" fill="${["#e4572e","#f3a712","#29335c","#669bbc"][(i*3+j)%4]}"/>`;
+  for (let i = 0; i < 24; i++) for (let j = 0; j < 4; j++)
+    dots += `<circle cx="${96 + i*18}" cy="${640 + j*18}" r="${(i*7 + j*3) % 5 === 0 ? 3.4 : 1.8}" fill="#e2e8f0" fill-opacity="${(i*7 + j*3) % 5 === 0 ? .9 : .35}"/>`;
+  let bars = "";
+  for (let i = 0, x = 1240; i < 34; i++) { const w = [2,4,1,3,6,2][i%6]; bars += `<rect x="${x}" y="96" width="${w}" height="44"/>`; x += w + [3,2,4,2,3][i%5]; }
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}">
-  <rect width="${W}" height="${H}" fill="#f7f5ef"/>
-  ${grid}
-  <text x="88" y="190" font-family="Georgia, 'Times New Roman', serif" font-size="118" fill="#111" letter-spacing="-3">Look closer.</text>
-  <text x="92" y="250" font-family="Helvetica, Arial, sans-serif" font-size="27" fill="#555">Drag the glass over the page</text>
-  ${text}
-  <rect x="980" y="290" width="540" height="540" rx="18" fill="#ffffff" stroke="#1f2328" stroke-width="3"/>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#05060b"/><stop offset="1" stop-color="#0c0e1c"/></linearGradient>
+    <linearGradient id="line" x1="0" x2="1"><stop offset="0" stop-color="#22d3ee"/><stop offset=".5" stop-color="#a78bfa"/><stop offset="1" stop-color="#fb7185"/></linearGradient>
+    <linearGradient id="type" x1="0" x2="1"><stop offset="0" stop-color="#f8fafc"/><stop offset="1" stop-color="#c7d2fe"/></linearGradient>
+    <filter id="blur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="80"/></filter>
+  </defs>
+  <rect width="${W}" height="${H}" fill="url(#bg)"/>
+  <g filter="url(#blur)">
+    <ellipse cx="1080" cy="380" rx="330" ry="240" fill="#7c3aed" fill-opacity=".55"/>
+    <ellipse cx="760" cy="620" rx="300" ry="190" fill="#06b6d4" fill-opacity=".42"/>
+    <ellipse cx="1340" cy="700" rx="230" ry="170" fill="#f43f5e" fill-opacity=".38"/>
+    <ellipse cx="260" cy="180" rx="260" ry="150" fill="#2563eb" fill-opacity=".3"/>
+  </g>
+  <g stroke="#cbd5e1" stroke-width="1">${grid}</g>
+  <g transform="translate(1010 470)" fill="none" stroke="#e2e8f0">${rings}
+    <path d="M-440 0H440M0 -440V440" stroke-opacity=".3"/>
+  </g>
+  <g fill="none">${waves}</g>
+  <text x="90" y="250" ${SANS} font-size="150" font-weight="700" letter-spacing="-6" fill="url(#type)">BEND THE</text>
+  <text x="90" y="400" ${SANS} font-size="150" font-weight="700" letter-spacing="-6" fill="none" stroke="#e2e8f0" stroke-width="2">LIGHT</text>
+  <text x="96" y="480" ${MONO} font-size="22" fill="#94a3b8" letter-spacing="3">REFRACTION STUDY / 01</text>
+  <text x="96" y="514" ${MONO} font-size="22" fill="#64748b" letter-spacing="3">INDEX n = 1.52   ƒ/1.8   42.0°</text>
   ${dots}
-  <path d="M0 920 Q 400 860 800 920 T 1600 920" stroke="#e4572e" stroke-width="10" fill="none"/>
+  <g fill="#e2e8f0" fill-opacity=".7">${bars}</g>
+  <text x="1240" y="172" ${MONO} font-size="16" fill="#94a3b8" letter-spacing="2">LX-2049 · OPTIC</text>
+  <rect x="96" y="560" width="420" height="3" fill="url(#line)"/>
 </svg>`;
 }
 const loadSample = () => loadSVGText(sampleSVG(), "sample.svg");
@@ -919,9 +943,9 @@ document.getElementById("themeBtn").onclick = () => {
   const root = document.documentElement;
   const isDark = root.dataset.theme ? root.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
   root.dataset.theme = isDark ? "light" : "dark";
-  try { localStorage.setItem("refract-theme", root.dataset.theme); } catch (_) {}
+  try { localStorage.setItem("refractium-theme", root.dataset.theme); } catch (_) {}
 };
-try { const t = localStorage.getItem("refract-theme"); if (t) document.documentElement.dataset.theme = t; } catch (_) {}
+try { const t = localStorage.getItem("refractium-theme"); if (t) document.documentElement.dataset.theme = t; } catch (_) {}
 
 /* ================= export ================= */
 let downloads = null;
@@ -952,7 +976,7 @@ async function exportImage(){
     requestRender();
   }
   if (!blob) { toast("Export failed", "The browser couldn’t encode the image. Try PNG."); return; }
-  const filename = `${(src.name || "image").replace(/\.[^.]+$/, "")}-refract.${fmt}`;
+  const filename = `${(src.name || "image").replace(/\.[^.]+$/, "")}-refractium.${fmt}`;
   if (downloads) {
     try { await downloads.save({ filename, data:blob }); toast("Exported", filename); }
     catch (err) {
